@@ -1,0 +1,513 @@
+# Alvaro Sanchez , Worldclouds and comparison 
+
+# R script for Most Commen Words and KWICs
+
+
+
+#install packages
+# install.packages(c("stringr", "dplyr", "readtext", "quanteda"))
+# install.packages("bit64")
+# install.packages("ggplot2")
+install.packages("topicmodels")
+install.packages("wordcloud")
+install.packages("stm")
+
+## load libraries
+library(stringr)
+library(dplyr)
+library(readtext)
+library(quanteda)
+library(bit64)
+library(ggplot2)
+library(tibble)
+
+setwd("C:/Users/vicsg/OneDrive/Desktop/Buddah vs. Bible Project")
+
+
+
+
+buddah <- readtext("C:/Users/vicsg/OneDrive/Desktop/Buddah vs. Bible Project/The_Gospel_of_Buddha.txt") 
+
+#texte <- readtext("The_Gospel_of_Buddha", text_field = "text", encoding = "UTF-8")
+
+
+view(buddah)
+
+#convert date
+#texte$date <- as.Date(texte$date, format = "%d.%m.%Y");
+#texte$year <- lubridate::year(texte$date)
+
+buddah_corpus <- corpus(buddah, docid_field = "doc_id", text_field = "text")
+view(buddah_corpus)
+
+
+# summary
+summary(buddah_corpus) %>% head
+
+# inspect the first documents
+buddah_corpus[1:0]
+
+# document level variables
+docvars(buddah_corpus) %>% head
+#metadoc(buddah_corpus, "language") <- "German"
+#metadoc(buddah_corpus, "origin") <- "Keaggle"
+#metadoc(buddah_corpus) %>% head
+
+# first steps
+summary(buddah_corpus, showmeta = TRUE) %>% head
+
+
+# Aufbereitung
+toks <- tokens(buddah_corpus,
+               what = c("word"),
+               remove_separators = TRUE,
+               include_docvars = TRUE,
+               ngrams = 1L,
+               remove_numbers = TRUE, #NO numbers 
+               remove_punct = TRUE,
+               remove_symbols = TRUE, #NO symbols
+               remove_hyphens = FALSE,
+               remove_url = TRUE #NO URLs
+)
+
+
+
+toks %>% head
+
+## Cleaning
+# Satzzeichen
+# toks <- toks %>% 
+#  tokens_remove(pattern = "^[[:punct:]]+$", # regex for toks consisting solely of punct class chars
+#                valuetype = "regex",
+#                padding = TRUE) 
+# stopwords
+toks <- toks %>% 
+  tokens_remove(stopwords("German"), padding = TRUE) 
+toks <- toks %>% 
+  tokens_remove(stopwords("English"), padding = TRUE) 
+toks[1:1]
+# remove empty token
+toks <- toks %>% 
+  tokens_remove("")
+toks[1:1]
+# remove custom stopwords
+
+#toks   # Ansicht der STOPWORDS
+
+toks <- toks %>% 
+  tokens_remove(c("thou","thy", "_skt", "said","thus","upon","must", "_p", "o","p","thee"))
+
+toks[1:1]
+
+# create document-term-matrix (quanteda: document-feature-matrix)
+mydfm <- dfm(toks)
+str(mydfm)
+
+#
+
+#kwic(buddah_corpus, "one", 3) %>% head(20)
+
+
+# quick overview
+topfeatures(mydfm, 50)
+
+top_words <-
+  topfeatures(mydfm, 20) %>% 
+  data.frame(word = names(.), freq = ., row.names = c())
+
+library(ggplot2)
+freq_tokens <-
+  ggplot(top_words, aes(x=reorder(word, freq), y=freq)) +
+  geom_col() + 
+  coord_flip() +
+  theme_minimal() +
+  ggtitle("Most frequent tokens") 
+freq_tokens
+
+
+plot(freq_tokens)
+
+
+
+
+## topic models
+library(topicmodels)
+library(tm)
+
+
+
+dtm <- convert(mydfm, to = "topicmodels")
+mode(dtm)
+class(dtm)
+str(dtm)
+
+# trimming of DTM
+dtm <- 
+  mydfm %>% 
+  dfm_trim(., sparsity = 0.999) %>% 
+  convert(., to = "topicmodels")
+
+# check
+as.matrix(dtm)[1:1,1:1]
+as.matrix(mydfm)[1:1,1:1]
+# freq words using tm-function
+tm::findFreqTerms(dtm, 40)
+
+# remove empty docs
+dtm <- dtm[rowSums(as.matrix(dtm)) > 0, ] 
+dtm
+
+
+kwic(toks, "blessed", 3) %>% head(20)
+kwic(toks, "truth", 3) %>% head(20)
+kwic(toks, "buddha", 3) %>% head(20)
+kwic(toks, "life", 3) %>% head(20)
+kwic(toks, "people", 3) %>% head(20)
+
+##  wordcould 
+install.packages("wordcloud")
+library(wordcloud)
+install.packages("RColorBrewer")
+library(RColorBrewer)
+install.packages("wordcloud2")
+library(wordcloud2)
+
+
+#if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+#
+#if(!require("RColorBrewer")) {install.packages("RColorBrewer"); library("RColorBrewer")}
+#
+install.packages("quanteda")
+#
+
+wordcloud(toks, max_words = 50, random.order = FALSE, colors = brewer.pal(6, "Dark2"), min_size = 1, max_size = 10 )## Warning: scale is deprecated; use min_size and max_size instead
+#
+
+wordcloud(toks, max_words = 30, random.order = FALSE, colors = brewer.pal(4, "Greens"), min_size = 1, max_size = 10, size = 0.7, shape = 'pentagon') ## Warning: scale is deprecated; use min_size and max_size instead
+#
+
+------------------------------------------------------------------------------------------------------
+  
+  # Now some goes for the King James Bible
+  
+  
+  
+  KJ_bible <- readtext("C:/Users/vicsg/OneDrive/Desktop/Buddah vs. Bible Project/The_King_ James_Bible.txt") 
+
+#texte <- readtext("The_Gospel_of_Buddha", text_field = "text", encoding = "UTF-8")
+
+
+view(KJ_bible)
+
+#convert date
+#texte$date <- as.Date(texte$date, format = "%d.%m.%Y");
+#texte$year <- lubridate::year(texte$date)
+
+KJ_bible_corpus <- corpus(KJ_bible, docid_field = "doc_id", text_field = "text")
+view(KJ_bible_corpus)
+
+
+# summary
+summary(KJ_bible_corpus) %>% head
+
+# inspect the first documents
+KJ_bible_corpus[1:0]
+
+# document level variables
+docvars(KJ_bible_corpus) %>% head
+#metadoc(KJ_bible_corpus, "language") <- "German"
+#metadoc(KJ_bible_corpus, "origin") <- "Keaggle"
+#metadoc(KJ_bible_corpus) %>% head
+
+# first steps
+summary(KJ_bible_corpus, showmeta = TRUE) %>% head
+
+
+# Aufbereitung
+toks2 <- tokens(KJ_bible_corpus,
+                what = c("word"),
+                remove_separators = TRUE,
+                include_docvars = TRUE,
+                ngrams = 1L,
+                remove_numbers = TRUE, #NO numbers 
+                remove_punct = TRUE,
+                remove_symbols = TRUE, #NO symbols
+                remove_hyphens = FALSE,
+                remove_url = TRUE #NO URLs
+)
+
+
+
+toks2 %>% head
+
+## Cleaning
+# Satzzeichen
+# toks <- toks %>% 
+#  tokens_remove(pattern = "^[[:punct:]]+$", # regex for toks consisting solely of punct class chars
+#                valuetype = "regex",
+#                padding = TRUE) 
+# stopwords
+toks2 <- toks2 %>% 
+  tokens_remove(stopwords("German"), padding = TRUE) 
+toks2 <- toks2 %>% 
+  tokens_remove(stopwords("English"), padding = TRUE) 
+toks2[1:1]
+# remove empty token
+toks2 <- toks2 %>% 
+  tokens_remove("")
+toks2[1:1]
+# remove custom stopwords
+
+#toks   # Ansicht der STOPWORDS
+
+toks2 <- toks2 %>% 
+  tokens_remove(c("thou","thy", "_skt", "said","thus","upon","must", "_p", "o","p","thee","ye","let","come","came","unto","shalt","shall"))
+
+toks2[1:1]
+
+# create document-term-matrix (quanteda: document-feature-matrix)
+mydfm2 <- dfm(toks2)
+str(mydfm2)
+
+#
+
+#kwic(buddah_corpus, "Buddah", 3) %>% head(20)
+
+
+# quick overview
+topfeatures(mydfm2, 50)
+
+top_words2 <-
+  topfeatures(mydfm2, 20) %>% 
+  data.frame(word = names(.), freq = ., row.names = c())
+
+library(ggplot2)
+freq_tokens <-
+  ggplot(top_words2, aes(x=reorder(word, freq), y=freq)) +
+  geom_col() + 
+  coord_flip() +
+  theme_minimal() +
+  ggtitle("Most frequent tokens") 
+freq_tokens
+
+
+plot(freq_tokens)
+
+
+
+
+## topic models
+library(topicmodels)
+library(tm)
+
+
+
+dtm2 <- convert(mydfm2, to = "topicmodels")
+mode(dtm2)
+class(dtm2)
+str(dtm2)
+
+# trimming of DTM
+dtm2 <- 
+  mydfm2 %>% 
+  dfm_trim(., sparsity = 0.999) %>% 
+  convert(., to = "topicmodels")
+
+# check
+as.matrix(dtm2)[1:1,1:1]
+as.matrix(mydfm2)[1:1,1:1]
+# freq words using tm-function
+tm::findFreqTerms(dtm2, 40)
+
+# remove empty docs
+dtm2 <- dtm[rowSums(as.matrix(dtm2)) > 0, ] 
+dtm2
+
+
+kwic(toks2, "lord", 5) %>% head(20)
+kwic(toks2, "god", 3) %>% head(20)
+kwic(toks2, "israel", 3) %>% head(20)
+kwic(toks2, "king", 3) %>% head(20)
+kwic(toks2, "people", 3) %>% head(20)
+
+##  wordcould 
+install.packages("wordcloud")
+library(wordcloud)
+install.packages("RColorBrewer")
+library(RColorBrewer)
+install.packages("wordcloud2")
+library(wordcloud2)
+
+
+#if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+#
+#if(!require("RColorBrewer")) {install.packages("RColorBrewer"); library("RColorBrewer")}
+#
+install.packages("quanteda")
+#
+
+wordcloud(toks2, max_words = 50, random.order = FALSE, colors = brewer.pal(6, "Accent"), min_size = 1, max_size = 10 )## Warning: scale is deprecated; use min_size and max_size instead
+#
+
+wordcloud(toks2, max_words = 30, random.order = FALSE, colors = brewer.pal(4, "Reds"), min_size = 1, max_size = 10, size = 0.7, shape = 'pentagon') ## Warning: scale is deprecated; use min_size and max_size instead
+#
+
+------------------------------------------------------------------------------------------------------
+ # Buddha Corpus 
+  
+  
+   
+  if(!require("quanteda")) {install.packages("quanteda"); library("quanteda")}
+#
+if(!require("readtext")) {install.packages("readtext"); library("readtext")}
+#
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+#
+if(!require("scales")) {install.packages("scales"); library("scales")}
+#
+# part of ggplot2
+theme_set(theme_bw()) 
+
+
+test.lexikon <- dictionary(list(posititive.begriffe = c("gl?ck", "freude", "licht"), negative.begriffe = c("trauer", "wut", "dunkelheit")))
+#
+test.lexikon
+summary(test.lexikon)
+
+
+# einscannen des LEXICONS
+
+positive.woerter.bl <- scan("lexika/bingliu-positive-words.txt", what = "char", sep = "\n", skip = 35, quiet = T)
+#
+negative.woerter.bl <- scan("lexika/bingliu-negative-words.txt", what = "char", sep = "\n", skip = 35, quiet = T)
+
+sentiment.lexikon <- dictionary(list(positive = positive.woerter.bl, negative = negative.woerter.bl))
+str(sentiment.lexikon)
+
+# Lexikon wurde eingeslesen 
+
+meine.dfm.sentiment <- dfm_lookup(mydfm, dictionary = sentiment.lexikon)
+meine.dfm.sentiment
+
+
+# DFM wurde mit dem Lexicon abgeglichen 
+
+view(buddah)
+view(buddah_corpus)
+
+
+#sentiment <- convert(meine.dfm.sentiment, "data.frame") %>%
+#gather(positive, negative, key = "Polarit?t", value = "W?rter") %>% 
+#mutate(document = as_factor(document)) %>% 
+#rename(Roman = document)
+
+#umformen von korpus  zu sätzem bzw. dokuments
+
+korpus.document <- corpus_reshape(buddah_corpus, to = "sentences")
+#
+
+view(korpus.document)
+
+#sentiment2 <- convert(meine.dfm.sentiment, "data.frame") %>%
+#gather(positive, negative, key = "Polarität", value = "Wörter") %>% 
+
+#mutate(korpus.document <- as_factor(korpus.document)) %>% 
+#rename(text <- korpus.document)
+
+meine.dfm.sentiment
+
+str(meine.dfm.sentiment)
+
+meine.dfm.sentiment
+--------------------------------------------------------------------------------#Plotten
+ 
+  #plot(meine.dfm.sentiment, method =  "all")
+
+  korpus.document
+  
+  plot(korpus.document)
+--------------------------------------------------------------------------------
+
+    #KING JAMES Bible
+    str(dfm$docs)
+   
+    meine.dfm.sentimentKJ <- dfm_lookup(mydfm2, dictionary = sentiment.lexikon)
+    meine.dfm.sentimentKJ
+    str(meine.dfm.sentimentKJ)
+  #umformen von korpus  zu sätzem bzw. dokuments
+    korpus.documenJK <- corpus_reshape(KJ_bible_corpus, to = "sentences")
+    
+    korpus.documenJK
+    
+    meine.dfm.sentimentKJ$features
+    
+    
+  #barplot(meine.dfm.sentimentKJ)
+  # DFM wurde mit dem Lexicon abgeglichen 
+  
+  view(KJ_bible)
+  view(KJ_bible_corpus)
+  view(korpus.documenJK)
+  view(KJ_bible)
+  view(tm2)
+  view(toks2)
+  view(mydfm2)
+  # großen zur Darstellung bringen 
+
+library(ggplot2)
+  
+  rm(list=ls(all=TRUE))
+  install.packages("igraph")
+  library(igraph)
+  library(tidyverse) # general utility & workflow functions
+  library(tidytext)
+  library(topicmodels) # for LDA topic modelling 
+  library(tm) # general text mining functions, making document term matrixes
+  library(SnowballC)
+  head(mydfm)
+  head(dtm)
+  head(top_words)
+  view(top_words)
+ 
+    top_terms_by_topic_LDA <- function(buddah_corpus['x'], # should be a columm from a dataframe
+                                       plot = T, # return a plot? TRUE by defult
+                                       number_of_topics = 4) # number of topics (4 by default)
+    {    
+      # create a corpus (type of object expected by tm) and document term matrix
+      Corpus <- buddah_corpus # make a corpus object
+      DTM <- dtm # get the count of words/document
+      
+      # remove any empty rows in our document term matrix (if there are any 
+      # we'll get an error when we try to run our LDA)
+      unique_indexes <- unique(DTM$i) # get the index of each unique value
+      DTM <- DTM[unique_indexes] # get a subset of only those indexes
+      
+      # preform LDA & get the words/topic in a tidy text format
+      lda <- LDA(DTM, k = number_of_topics, control = list(seed = 1234))
+      topics <- tidy(lda, matrix = "beta")
+      
+      # get the top ten terms for each topic
+      top_terms <- topics  %>% # take the topics data frame and..
+        group_by(topic) %>% # treat each topic as a different group
+        top_n(10, beta) %>% # get the top 10 most informative words
+        ungroup() %>% # ungroup
+        arrange(topic, -beta) # arrange words in descending informativeness
+      
+      # if the user asks for a plot (TRUE by default)
+      if(plot == T){
+        # plot the top ten terms for each topic in order
+        top_terms %>% # take the top terms
+          mutate(term = reorder(term, beta)) %>% # sort terms by beta value 
+          ggplot(aes(term, beta, fill = factor(topic))) + # plot beta by theme
+          geom_col(show.legend = FALSE) + # as a bar plot
+          facet_wrap(~ topic, scales = "free") + # which each topic in a seperate plot
+          labs(x = NULL, y = "Beta") + # no x label, change y label 
+          coord_flip() # turn bars sideways
+      }else{ 
+        # if the user does not request a plot
+        # return a list of sorted terms instead
+        return(top_terms)
+      }
+    }
+  
+  top_terms_by_topic_LDA(buddah_corpus['x'], number_of_topics = 4)
